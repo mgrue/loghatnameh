@@ -26,6 +26,7 @@ async fn main() {
     let app = Router::new()
         .route("/", get(handlers::root))
         .route("/", post(handlers::search))
+        .route("/word", get(handlers::word_details))
         .nest_service("/css", ServeDir::new("css"))
         .nest_service("/about", ServeDir::new("static"))
         .with_state(state);

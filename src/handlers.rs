@@ -2,8 +2,8 @@ use askama::Template;
 use serde::Deserialize;
 use axum::{
     http::{StatusCode},
-    response::{Html, IntoResponse, Response},
-    extract::{Form, State}
+    response::{Html, IntoResponse},
+    extract::{Form, State, Query}
 };
 
 #[derive(Debug, sqlx::Type)]
@@ -29,9 +29,21 @@ impl From<String> for Lang {
     }
 }
 
+#[derive(Debug, sqlx::FromRow)]
+struct Variant {
+    id: u32,
+    name: String,
+    value: String
+}
+
 struct Translation {
     word: Word,
     translations: Vec<Word>
+}
+
+#[derive(Deserialize, Debug)]
+pub struct WordIdParam {
+  id: u32
 }
 
 #[derive(Template)]
@@ -49,6 +61,14 @@ struct ResultsTemplate<'a> {
 struct NoResultsTemplate<> {
 }
 
+#[derive(Template)]
+#[template(path = "word-details.html")]
+struct WordDetailsTemplate<'a> {
+    word: &'a Word,
+    variants: &'a Vec<Variant>
+}
+
+
 #[derive(Deserialize)]
 pub struct Search {
     query: String
@@ -62,8 +82,8 @@ pub struct AppState {
 pub async fn root(State(state): State<AppState>) -> impl IntoResponse {
     log_qeuery(&state.db_pool, "PAGE_VIEW").await.unwrap();
 
-    let hello = IndexTemplate { };
-    let html = hello.render().unwrap();
+    let template = IndexTemplate { };
+    let html = template.render().unwrap();
 
     (StatusCode::OK, Html(html).into_response())
 }
@@ -91,6 +111,32 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
 
         return (StatusCode::OK, Html(html).into_response())
     }
+}
+
+pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<WordIdParam>>) -> impl IntoResponse {
+    log_qeuery(&state.db_pool, "WORD_VIEW").await.unwrap();
+    
+    let query = sqlx::query_as!(
+        Word, 
+        "select a.id, a.value, a.lang from word a where a.id = ?", 
+        word_id.unwrap().id);
+    let word = query.fetch_one(&state.db_pool).await.unwrap();
+
+    let variant_query = sqlx::query_as!(
+        Variant,
+        "SELECT a.id, a.name, a.value FROM variant a WHERE a.fk_word_id = ?",
+        word.id
+    );
+
+    let variants = variant_query.fetch_all(&state.db_pool).await;
+    
+    let template = WordDetailsTemplate { 
+        word: &word,
+        variants: &variants.unwrap()
+    };
+    let html = template.render().unwrap();
+
+    (StatusCode::OK, Html(html).into_response())
 }
 
 fn empty_response() -> impl IntoResponse {
