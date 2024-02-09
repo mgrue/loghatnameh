@@ -1,0 +1,17 @@
+{% macro render_word(item) -%}
+    {{ item.word.value }}
+{%- endmacro -%}
+
+{% macro render_translations(item) -%}
+    <ul>
+        {% for n in item.translations %}
+            <li><a href="/word?id={{ n.id }}">{{ n.value }}</a></li>
+        {% endfor %}
+    </ul>
+{%- endmacro -%}
+
+<ul class="todo-list" id="todo-list">
+    {% for item in results %}
+        {% include "item.html" %}
+    {% endfor %}
+</ul>

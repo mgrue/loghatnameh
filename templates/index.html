@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Loghatnameh</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10" integrity="sha384-D1Kt99CQMDuVetoL1lrYwg5t+9QdHe7NLX/SoJYkXDFfX37iInKRy5xLSi8nO7UC" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="css/index.css" />
+  </head>
+  <body>
+    <section class="todoapp" hx-boost="true">
+        <header class="header">
+            <h1>loghatnameh</h1>
+            <form action="/" method="POST" hx-target="#search-results" hx-swap="innerHTML">
+                <input class="new-todo" name="query" placeholder="What are you looking for?" autofocus>
+            </form>
+          </header>
+    </section>
+    <section class="main">
+      <div id="search-results"></div>
+    </section>
+  </body>
+</html>

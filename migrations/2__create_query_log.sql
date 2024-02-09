@@ -1,0 +1,5 @@
+CREATE TABLE query_log (
+    `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+    `timestamp` DATETIME NOT NULL,
+    PRIMARY KEY (`id`)
+);

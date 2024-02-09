@@ -1,70 +1,37 @@
-struct Sedan;
+use axum::{
+    routing::get,
+    routing::post,
+    Router
+};
 
-impl LandCapable for Sedan {
-    fn drive(&self) {
-        println!("Sedan is driving");
-    }
-}
+use tower_http::{
+    services::{ServeDir}
+};
 
-struct SUV;
-impl LandCapable for SUV {
-    fn drive(&self) {
-        println!("SUV is driving");
-    }
-}
+use log::info;
 
-struct Bicycle;
-impl LandCapable for Bicycle {
+mod handlers;
+mod db;
 
-}
+#[tokio::main]
+async fn main() {
+    env_logger::init();
+    
+    let state = handlers::AppState {
+        db_pool: db::init().await
+    };
 
-trait LandCapable {
-    fn drive(&self) {
-        println!("Default impl drive")
-    }
-}
+    db::migrate(&state.db_pool).await;
 
-trait WaterCapable {
-    fn float(&self) {
-        println!("Default impl float")
-    }
-}
+    let app = Router::new()
+        .route("/", get(handlers::root))
+        .route("/", post(handlers::search))
+        .nest_service("/css", ServeDir::new("css"))
+        .nest_service("/about", ServeDir::new("static"))
+        .with_state(state);
 
-trait Amphibious : WaterCapable + LandCapable {
-}
+    info!("Starting server...");
 
-struct Hovercraft;
-impl Amphibious for Hovercraft {}
-impl LandCapable for Hovercraft {
-    fn drive(&self) {
-        println!("Hovercraft is DRIVING")
-    }
-}
-impl WaterCapable for Hovercraft {
-    fn float(&self) {
-        println!("Hovercraft is FLOATING")
-    }
-}
-
-fn road_trip(vehicle: &impl LandCapable) {
-    vehicle.drive();
-}
-
-fn traverse_frozen_lake(vehicle: &impl Amphibious) {
-    vehicle.drive();
-    vehicle.float();
-}
-
-fn main() {
-    let hc = Hovercraft;
-    traverse_frozen_lake(&hc);
-
-    let car = Sedan;
-    road_trip(&car);
-
-    let suv = SUV;
-    road_trip(&suv);
-
-    let bike = Bicycle;
-    road_trip(&bike);
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service()).await.unwrap();
 }
