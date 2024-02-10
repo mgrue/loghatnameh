@@ -2,9 +2,10 @@ use askama::Template;
 use serde::Deserialize;
 use axum::{
     http::{StatusCode},
-    response::{Html, IntoResponse},
+    response::{Html, IntoResponse, Response},
     extract::{Form, State, Query}
 };
+use log::{debug};
 
 #[derive(Debug, sqlx::Type)]
 enum Lang {
@@ -79,17 +80,17 @@ pub struct AppState {
     pub db_pool: sqlx::Pool<sqlx::MySql>
 }
 
-pub async fn root(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn root(State(state): State<AppState>) -> Response {
     log_qeuery(&state.db_pool, "PAGE_VIEW").await.unwrap();
 
     let template = IndexTemplate { };
     let html = template.render().unwrap();
 
-    (StatusCode::OK, Html(html).into_response())
+    Html(html).into_response()
 }
 
-pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) -> impl IntoResponse {
-    println!("Query: {}", payload.query);
+pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) -> Response {
+    debug!("Query: {}", payload.query);
 
     log_qeuery(&state.db_pool, "SEARCH").await.unwrap();
 
@@ -97,19 +98,10 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
     let words = query.fetch_all(&state.db_pool).await;
 
     let items = create_translations(words.unwrap(), &state.db_pool).await.unwrap();
-    
-    if items.len() > 0 {
-        let template = ResultsTemplate { 
-            results: &items 
-        };
-        let html = template.render().unwrap();
-    
-        return (StatusCode::OK, Html(html).into_response())
-    } else {
-        let template = NoResultsTemplate {};
-        let html = template.render().unwrap();
 
-        return (StatusCode::OK, Html(html).into_response())
+    match items.len() {
+        0 => empty_response(),
+        _ => results_response(&items)
     }
 }
 
@@ -139,20 +131,20 @@ pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<W
     (StatusCode::OK, Html(html).into_response())
 }
 
-fn empty_response() -> impl IntoResponse {
+fn empty_response() -> Response {
     let template = NoResultsTemplate {};
     let html = template.render().unwrap();
 
-    (StatusCode::OK, Html(html).into_response())
+    Html(html).into_response()
 }
 
-fn results_response(items: &Vec<Translation>) -> impl IntoResponse {
+fn results_response(items: &Vec<Translation>) -> Response {
     let template = ResultsTemplate { 
         results: &items 
     };
     let html = template.render().unwrap();
 
-    (StatusCode::OK, Html(html).into_response())
+    Html(html).into_response()
 }
 
 async fn create_translations(words: Vec<Word>, db_pool: &sqlx::Pool<sqlx::MySql>) -> Result<Vec<Translation>, sqlx::Error> {
