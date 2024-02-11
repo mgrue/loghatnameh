@@ -1,10 +1,17 @@
 {% let len = variants.len() %}
 
-<h1>{{ word.value }}</h1>
+<h1>
+  <span>{{ word.value }}</span>
+  {% if word.transcript.is_some() %}
+  <span>({{ word.transcript.as_ref().unwrap() }})</span>
+  {% endif %}
+</h1>
 
 {% if len > 0 %}
   <h2>Varianten</h2>
-  {% for var in variants %}
-    <li>{{ var.name }}: {{ var.value }}</li>
-  {% endfor %}
+  <ul class="variants">
+    {% for var in variants %}
+      <li>{{ var.name }}: {{ var.value }}</li>
+    {% endfor %}
+  </ul>
 {% endif %}

@@ -17,7 +17,8 @@ enum Lang {
 struct Word {
     id: u32,
     value: String,
-    lang: Lang
+    lang: Lang,
+    transcript: Option<String>
 }
 
 impl From<String> for Lang {
@@ -100,7 +101,7 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
 
     log_qeuery(&state.db_pool, "SEARCH").await.unwrap();
 
-    let query = sqlx::query_as!(Word, "SELECT * FROM word a where a.value like ?", payload.query);
+    let query = sqlx::query_as!(Word, "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.value like ?", payload.query);
     let words = query.fetch_all(&state.db_pool).await;
 
     let items = create_translations(words.unwrap(), &state.db_pool).await.unwrap();
@@ -116,7 +117,7 @@ pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<W
     
     let query = sqlx::query_as!(
         Word, 
-        "select a.id, a.value, a.lang from word a where a.id = ?", 
+        "select a.id, a.value, a.lang, a.transcript from word a where a.id = ?",
         word_id.unwrap().id);
     let word_query_result = query.fetch_one(&state.db_pool).await;
 
@@ -194,7 +195,7 @@ async fn create_translations(words: Vec<Word>, db_pool: &sqlx::Pool<sqlx::MySql>
 async fn fetch_translations(word: &Word, db_pool: &sqlx::Pool<sqlx::MySql>) -> Result<Vec<Word>, sqlx::Error> {
     let query = sqlx::query_as!(
         Word, 
-        "select a.id, a.value, a.lang from word a left join translation b on a.id = b.fk_word_2_id where b.fk_word_1_id = ? or b.fk_word_2_id = ?", 
+        "select a.id, a.value, a.lang, a.transcript from word a left join translation b on a.id = b.fk_word_2_id where b.fk_word_1_id = ? or b.fk_word_2_id = ?",
         word.id,
         word.id);
     let words = query.fetch_all(db_pool).await?;

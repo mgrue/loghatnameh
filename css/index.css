@@ -398,3 +398,11 @@ html .clear-completed:active {
 .error {
 	color: red;
 }
+
+.variants {
+	padding-left: 0;
+}
+
+.variants li {
+	list-style: none;
+}
