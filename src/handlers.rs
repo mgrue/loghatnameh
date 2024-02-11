@@ -8,6 +8,8 @@ use axum::{
 use dotenv::var;
 use log::{debug};
 
+use crate::i18n;
+
 #[derive(Debug, sqlx::Type)]
 enum Lang {
     DE, FA
@@ -88,6 +90,7 @@ pub struct AppState {
 }
 
 pub async fn root(State(state): State<AppState>) -> Response {
+    i18n::get_string("PRESENT_STEM");
     log_qeuery(&state.db_pool, "PAGE_VIEW").await.unwrap();
 
     let template = IndexTemplate { };

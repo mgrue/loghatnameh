@@ -11,7 +11,7 @@
   <h2>Varianten</h2>
   <ul class="variants">
     {% for var in variants %}
-      <li>{{ var.name }}: {{ var.value }}</li>
+      <li>{{ i18n::get_string(var.name) }}: {{ var.value }}</li>
     {% endfor %}
   </ul>
 {% endif %}

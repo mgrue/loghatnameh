@@ -12,6 +12,7 @@ use log::info;
 
 mod handlers;
 mod db;
+pub mod i18n;
 
 #[tokio::main]
 async fn main() {

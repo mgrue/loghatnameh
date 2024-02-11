@@ -33,6 +33,10 @@ body {
 	font-weight: 300;
 }
 
+h2 {
+	font-size: 1em;
+}
+
 :focus {
 	outline: 0;
 }
@@ -71,7 +75,7 @@ body {
 	position: absolute;
 	top: -140px;
 	width: 100%;
-	font-size: 80px;
+	font-size: 5em;
 	font-weight: 200;
 	text-align: center;
 	/*color: #b83f45; */
