@@ -5,6 +5,7 @@ use axum::{
     response::{Html, IntoResponse, Response},
     extract::{Form, State, Query}
 };
+use dotenv::var;
 use log::{debug};
 
 #[derive(Debug, sqlx::Type)]
@@ -69,6 +70,11 @@ struct WordDetailsTemplate<'a> {
     variants: &'a Vec<Variant>
 }
 
+#[derive(Template)]
+#[template(path = "error.html")]
+struct ErrorTemplate<'a> {
+    error: &'a sqlx::Error
+}
 
 #[derive(Deserialize)]
 pub struct Search {
@@ -105,30 +111,50 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
     }
 }
 
-pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<WordIdParam>>) -> impl IntoResponse {
+pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<WordIdParam>>) -> Response {
     log_qeuery(&state.db_pool, "WORD_VIEW").await.unwrap();
     
     let query = sqlx::query_as!(
         Word, 
         "select a.id, a.value, a.lang from word a where a.id = ?", 
         word_id.unwrap().id);
-    let word = query.fetch_one(&state.db_pool).await.unwrap();
+    let word_query_result = query.fetch_one(&state.db_pool).await;
 
+    if word_query_result.is_err() {
+        return error_response(&word_query_result.err().unwrap());
+    }
+
+    let word = word_query_result.unwrap();
     let variant_query = sqlx::query_as!(
         Variant,
         "SELECT a.id, a.name, a.value FROM variant a WHERE a.fk_word_id = ?",
         word.id
     );
 
-    let variants = variant_query.fetch_all(&state.db_pool).await;
-    
-    let template = WordDetailsTemplate { 
-        word: &word,
-        variants: &variants.unwrap()
+    let query_result = variant_query.fetch_all(&state.db_pool).await;
+    match query_result {
+        Ok(variants) => word_details_response(&word, &variants),
+        Err(error) => error_response(&error)
+    }
+}
+
+fn word_details_response(word: &Word, variants: &Vec<Variant>) -> Response {
+    let template = WordDetailsTemplate {
+        word,
+        variants
     };
     let html = template.render().unwrap();
 
-    (StatusCode::OK, Html(html).into_response())
+    Html(html).into_response()
+}
+
+fn error_response(error: &sqlx::Error) -> Response {
+    let template = ErrorTemplate {
+        error
+    };
+    let html = template.render().unwrap();
+
+    Html(html).into_response()
 }
 
 fn empty_response() -> Response {
@@ -155,8 +181,8 @@ async fn create_translations(words: Vec<Word>, db_pool: &sqlx::Pool<sqlx::MySql>
         let translations = fetch_translations(&word, db_pool).await?;
         
         let translation = Translation {
-            word: word,
-            translations: translations
+            word,
+            translations
         };
 
         result.push(translation);

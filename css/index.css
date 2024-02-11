@@ -394,3 +394,7 @@ html .clear-completed:active {
 	float: left;
 	font-size: 1.5em;
 }
+
+.error {
+	color: red;
+}

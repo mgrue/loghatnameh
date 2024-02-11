@@ -1,1 +1,10 @@
+{% let len = variants.len() %}
+
 <h1>{{ word.value }}</h1>
+
+{% if len > 0 %}
+  <h2>Varianten</h2>
+  {% for var in variants %}
+    <li>{{ var.name }}: {{ var.value }}</li>
+  {% endfor %}
+{% endif %}
