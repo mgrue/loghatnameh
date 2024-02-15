@@ -123,7 +123,8 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
 
     log_qeuery(&state.db_pool, "SEARCH").await.unwrap();
 
-    let query = sqlx::query_as!(Word, "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.value like ?", payload.query);
+    let query = sqlx::query_as!(Word, "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.value like ?",
+        format!("{}%", payload.query.trim()));
     let words = query.fetch_all(&state.db_pool).await;
 
     let items = create_translations(words.unwrap(), &state.db_pool).await.unwrap();
