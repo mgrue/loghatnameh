@@ -51,6 +51,18 @@ pub struct WordIdParam {
   id: u32
 }
 
+#[derive(Deserialize, Debug)]
+pub struct WordParam {
+    query: Option<String>
+}
+
+#[derive(Deserialize, Debug)]
+pub struct AddWordParam {
+    word1: Option<String>,
+    word2: Option<String>,
+    transcript: Option<String>,
+}
+
 #[derive(Template)]
 #[template(path = "index.html")]
 struct IndexTemplate<> {}
@@ -71,6 +83,13 @@ struct NoResultsTemplate<> {
 struct WordDetailsTemplate<'a> {
     word: &'a Word,
     variants: &'a Vec<Variant>
+}
+
+#[derive(Template)]
+#[template(path = "word-add.html")]
+struct WordAddTemplate<'a> {
+    value1: &'a Option<String>,
+    value2: &'a Option<String>
 }
 
 #[derive(Template)]
@@ -140,6 +159,68 @@ pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<W
         Ok(variants) => word_details_response(&word, &variants),
         Err(error) => error_response(&error)
     }
+}
+
+pub async fn add_word_get(Query(query): Query<WordParam>) -> Response {
+    let template = WordAddTemplate {
+        value1: &query.query,
+        value2: &None
+    };
+    let html = template.render().unwrap();
+
+    Html(html).into_response()
+}
+
+pub async fn add_word_post(State(state): State<AppState>, Form(query): Form<AddWordParam>) -> Response {
+    if query.word1.is_none() || query.word2.is_none() {
+        return Html("<span class='error'>Two words must be provided</span>").into_response()
+    }
+    else {
+        let mut transaction = state.db_pool.begin().await;
+        let word1 = query.word1.unwrap();
+        let word2 = query.word2.unwrap();
+
+        match transaction {
+            Ok(mut tx) => {
+                let word1_insert = sqlx::query("INSERT INTO word(value, lang) VALUES(?, ?)")
+                    .bind(word1)
+                    .bind("DE")
+                    .execute(&mut *tx)
+                    .await;
+
+                let word2_insert = sqlx::query("INSERT INTO word(value, transcript, lang) VALUES(?, ?, ?)")
+                    .bind(word2)
+                    .bind(query.transcript)
+                    .bind("FA")
+                    .execute(&mut *tx)
+                    .await;
+
+                if word1_insert.is_err() || word2_insert.is_err() {
+                    tx.rollback().await.unwrap();
+                    return error_response(&word1_insert.err().unwrap());
+                }
+
+                let word1_id = word1_insert.unwrap().last_insert_id();
+                let word2_id = word2_insert.unwrap().last_insert_id();
+
+                let translation_insert = sqlx::query("INSERT INTO translation(fk_word_1_id, fk_word_2_id) VALUES(?, ?)")
+                    .bind(word1_id)
+                    .bind(word2_id)
+                    .execute(&mut *tx)
+                    .await;
+
+                if translation_insert.is_err() {
+                    tx.rollback().await.unwrap();
+                    return error_response(&translation_insert.err().unwrap());
+                }
+
+                tx.commit().await.unwrap();
+            },
+            Err(error) => return error_response(&error)
+        }
+    }
+
+    Html("<span class='success'>DONE</span>").into_response()
 }
 
 fn word_details_response(word: &Word, variants: &Vec<Variant>) -> Response {

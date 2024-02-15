@@ -1,0 +1,19 @@
+<h1>Neues Wort hinzufügen</h1>
+<form hx-post="/add-word"
+      hx-target="#add-word"
+      hx-swap="innerHTML"
+      hx-include="[name='word1'],[name='word2'],[name='transcript']">
+    <label>
+        Deutsch<br/>
+        <input class="add-word" name="word1" required pattern="^(?!\s*$).+" />
+    </label>
+    <br/>
+    <label>
+        Farsi<br/>
+        <input class="add-word" name="word2" placeholder="Übersetzung" required pattern="^(?!\s*$).+" />
+        <input class="add-word" name="transcript" placeholder="Transkript" required />
+    </label>
+    <br/>
+    <button >Wort hinzufügen
+    </button>
+</form>

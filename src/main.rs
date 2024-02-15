@@ -28,6 +28,8 @@ async fn main() {
         .route("/", get(handlers::root))
         .route("/", post(handlers::search))
         .route("/word", get(handlers::word_details))
+        .route("/add-word", get(handlers::add_word_get))
+        .route("/add-word", post(handlers::add_word_post))
         .nest_service("/css", ServeDir::new("css"))
         .nest_service("/about", ServeDir::new("static"))
         .with_state(state);
