@@ -1,3 +1,4 @@
+use askama::filters::format;
 use axum::{
     routing::get,
     routing::post,
@@ -34,8 +35,12 @@ async fn main() {
         .nest_service("/about", ServeDir::new("static"))
         .with_state(state);
 
-    info!("Starting server...");
+    let bind_iface = std::env::var("BIND_INTERFACE").unwrap_or(String::from("0.0.0.0"));
+    let bind_port = std::env::var("BIND_PORT").unwrap_or(String::from("3000"));
+    let bind = format!("{}:{}", bind_iface, bind_port);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    info!("Starting server at {}", bind);
+
+    let listener = tokio::net::TcpListener::bind(bind).await.unwrap();
     axum::serve(listener, app.into_make_service()).await.unwrap();
 }
