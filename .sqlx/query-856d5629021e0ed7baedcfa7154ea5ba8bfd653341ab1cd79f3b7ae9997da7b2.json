@@ -1,0 +1,36 @@
+{
+  "db_name": "MySQL",
+  "query": "SELECT a.name, a.value FROM variant a WHERE a.fk_word_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "name",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "char_set": 224,
+          "max_size": 400
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "value",
+        "type_info": {
+          "type": "VarString",
+          "flags": "NOT_NULL | NO_DEFAULT_VALUE",
+          "char_set": 224,
+          "max_size": 400
+        }
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "856d5629021e0ed7baedcfa7154ea5ba8bfd653341ab1cd79f3b7ae9997da7b2"
+}
