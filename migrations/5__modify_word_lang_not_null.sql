@@ -1,0 +1,1 @@
+alter table word modify column lang varchar(4) not null;

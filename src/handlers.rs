@@ -1,42 +1,27 @@
 use askama::Template;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use axum::{
-    http::{StatusCode},
     response::{Html, IntoResponse, Response},
     extract::{Form, State, Query}
 };
-use dotenv::var;
+//use dotenv::var;
 use log::{debug};
+use sqlx::{Error, Row};
+use sqlx::mysql::MySqlQueryResult;
 
 use crate::i18n;
-
-#[derive(Debug, sqlx::Type)]
-enum Lang {
-    DE, FA
-}
 
 #[derive(Debug, sqlx::FromRow)]
 struct Word {
     id: u32,
     value: String,
-    lang: Lang,
+    lang: String,
     transcript: Option<String>
-}
-
-impl From<String> for Lang {
-    fn from(value: String) -> Lang {
-        let s = &*value;
-        match s {
-            "DE" => Lang::DE,
-            "FA" => Lang::FA,
-            &_ => Lang::DE
-        }
-    }
 }
 
 #[derive(Debug, sqlx::FromRow)]
 struct Variant {
-    id: u32,
+    //id: u32,
     name: String,
     value: String
 }
@@ -110,7 +95,7 @@ pub struct AppState {
 
 pub async fn root(State(state): State<AppState>) -> Response {
     i18n::get_string("PRESENT_STEM");
-    log_qeuery(&state.db_pool, "PAGE_VIEW").await.unwrap();
+    log_query(&state.db_pool, "PAGE_VIEW").await.unwrap();
 
     let template = IndexTemplate { };
     let html = template.render().unwrap();
@@ -121,22 +106,24 @@ pub async fn root(State(state): State<AppState>) -> Response {
 pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) -> Response {
     debug!("Query: {}", payload.query);
 
-    log_qeuery(&state.db_pool, "SEARCH").await.unwrap();
+    log_query(&state.db_pool, "SEARCH").await.unwrap();
 
     let query = sqlx::query_as!(Word, "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.value like ?",
         format!("{}%", payload.query.trim()));
     let words = query.fetch_all(&state.db_pool).await;
 
-    let items = create_translations(words.unwrap(), &state.db_pool).await.unwrap();
-
-    match items.len() {
-        0 => empty_response(),
-        _ => results_response(&items)
+    let items = create_translations(words.unwrap(), &state.db_pool).await;
+    match items {
+        Ok(items) => match items.len() {
+            0 => empty_response(),
+            _ => results_response(&items)
+        }
+        Err(e) => error_response(&e)
     }
 }
 
 pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<WordIdParam>>) -> Response {
-    log_qeuery(&state.db_pool, "WORD_VIEW").await.unwrap();
+    log_query(&state.db_pool, "WORD_VIEW").await.unwrap();
     
     let query = sqlx::query_as!(
         Word, 
@@ -151,7 +138,7 @@ pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<W
     let word = word_query_result.unwrap();
     let variant_query = sqlx::query_as!(
         Variant,
-        "SELECT a.id, a.name, a.value FROM variant a WHERE a.fk_word_id = ?",
+        "SELECT a.name, a.value FROM variant a WHERE a.fk_word_id = ?",
         word.id
     );
 
@@ -177,7 +164,7 @@ pub async fn add_word_post(State(state): State<AppState>, Form(query): Form<AddW
         return Html("<span class='error'>Two words must be provided</span>").into_response()
     }
     else {
-        let mut transaction = state.db_pool.begin().await;
+        let transaction = state.db_pool.begin().await;
         let word1 = query.word1.unwrap();
         let word2 = query.word2.unwrap();
 
@@ -278,17 +265,41 @@ async fn create_translations(words: Vec<Word>, db_pool: &sqlx::Pool<sqlx::MySql>
 }
 
 async fn fetch_translations(word: &Word, db_pool: &sqlx::Pool<sqlx::MySql>) -> Result<Vec<Word>, sqlx::Error> {
-    let query = sqlx::query_as!(
-        Word, 
-        "select a.id, a.value, a.lang, a.transcript from word a left join translation b on a.id = b.fk_word_2_id where b.fk_word_1_id = ? or b.fk_word_2_id = ?",
-        word.id,
-        word.id);
-    let words = query.fetch_all(db_pool).await?;
-    
-    return Ok(words);
+    let translations = sqlx::query(
+        "select a.fk_word_1_id, a.fk_word_2_id from translation a where a.fk_word_1_id = ? or a.fk_word_2_id = ?")
+        .bind(word.id)
+        .bind(word.id)
+        .fetch_all(db_pool)
+        .await;
+
+    let ids = match translations {
+        Ok(rows) => {
+            rows.iter().map(|e| {
+                let id1:u32 = e.get(0);
+                let id2:u32 = e.get(1);
+
+                if id1 == word.id {
+                    id2
+                }
+                else {
+                    id1
+                }
+            }).collect::<Vec<u32>>()
+        },
+        Err(e) => return Err(e)
+    };
+
+    let query_str = format!("SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.id in ({})",
+                            ids.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(","));
+    let query:Result<Vec<Word>, Error> = sqlx::query_as(query_str.as_str()).fetch_all(db_pool).await;
+
+    return match query {
+        Ok(words) => Ok(words),
+        Err(e) => Err(e)
+    }
 }
 
-async fn log_qeuery(db_pool: &sqlx::Pool<sqlx::MySql>, query_type: &str) -> Result<(), sqlx::Error> {
+async fn log_query(db_pool: &sqlx::Pool<sqlx::MySql>, query_type: &str) -> Result<(), sqlx::Error> {
     let sql = "INSERT INTO query_log(timestamp, query_type) VALUES(NOW(), ?);";
 
     sqlx::query(sql)
