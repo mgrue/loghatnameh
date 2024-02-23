@@ -6,16 +6,24 @@ use axum::{
 };
 //use dotenv::var;
 use log::{debug};
+use std::str::FromStr;
 use sqlx::{Error, Row};
 use sqlx::mysql::MySqlQueryResult;
+use strum_macros::{Display, EnumString};
 
 use crate::i18n;
+
+#[derive(Debug, sqlx::Type, Display, EnumString)]
+enum Lang {
+    DE,
+    FA,
+}
 
 #[derive(Debug, sqlx::FromRow)]
 struct Word {
     id: u32,
     value: String,
-    lang: String,
+    lang: Lang,
     transcript: Option<String>
 }
 
@@ -108,7 +116,14 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
 
     log_query(&state.db_pool, "SEARCH").await.unwrap();
 
-    let query = sqlx::query_as!(Word, "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.value like ?",
+    let query = sqlx::query_as!(
+        Word,
+        "SELECT \
+        a.id, \
+        a.value, \
+        a.lang as \"lang: Lang\", \
+        a.transcript \
+        FROM word a where a.value like ?",
         format!("{}%", payload.query.trim()));
     let words = query.fetch_all(&state.db_pool).await;
 
@@ -127,7 +142,12 @@ pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<W
     
     let query = sqlx::query_as!(
         Word, 
-        "select a.id, a.value, a.lang, a.transcript from word a where a.id = ?",
+        "select \
+        a.id, \
+        a.value, \
+        a.lang as \"lang: Lang\", \
+        a.transcript \
+        from word a where a.id = ?",
         word_id.unwrap().id);
     let word_query_result = query.fetch_one(&state.db_pool).await;
 
@@ -289,12 +309,35 @@ async fn fetch_translations(word: &Word, db_pool: &sqlx::Pool<sqlx::MySql>) -> R
         Err(e) => return Err(e)
     };
 
-    let query_str = format!("SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.id in ({})",
-                            ids.iter().map(|e| e.to_string()).collect::<Vec<String>>().join(","));
-    let query:Result<Vec<Word>, Error> = sqlx::query_as(query_str.as_str()).fetch_all(db_pool).await;
+    let mut query_builder: sqlx::QueryBuilder<sqlx::MySql> = sqlx::QueryBuilder::new(
+        "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.id in ("
+    );
+    let mut separated = query_builder.separated(", ");
+    for value_type in ids {
+        separated.push_bind(value_type);
+    }
+    separated.push_unseparated(") ");
+    let mut query = query_builder.build();
+    let result = query.fetch_all(&*db_pool).await;
 
-    return match query {
-        Ok(words) => Ok(words),
+    match result {
+        Ok(rows) => {
+            Ok(rows.iter()
+                .map(|row| {
+                    let id: u32 = row.get(0);
+                    let value: String = row.get(1);
+                    let lang: Lang = Lang::from_str(row.get(2)).unwrap();
+                    let transcript: Option<String> = row.get(3);
+
+                    Word {
+                        id,
+                        value,
+                        lang,
+                        transcript
+                    }
+                })
+                .collect::<Vec<Word>>())
+        },
         Err(e) => Err(e)
     }
 }
