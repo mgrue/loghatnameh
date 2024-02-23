@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.value like ?",
+  "query": "select a.id, a.value, a.lang as \"lang: Lang\", a.transcript from word a where a.id = ?",
   "describe": {
     "columns": [
       {
@@ -25,12 +25,12 @@
       },
       {
         "ordinal": 2,
-        "name": "lang",
+        "name": "lang: Lang",
         "type_info": {
           "type": "VarString",
           "flags": "NOT_NULL | NO_DEFAULT_VALUE",
           "char_set": 224,
-          "max_size": 16
+          "max_size": 80
         }
       },
       {
@@ -54,5 +54,5 @@
       true
     ]
   },
-  "hash": "dd228b20bf34dd79e2c5e7bc3804186afda5e8e9980c82ff9966d705ba89c169"
+  "hash": "6e991481b094b1c2aeec6df703fb4d7133324fbf75e6fca7db932d9ee39e775f"
 }
