@@ -384,14 +384,16 @@ html .clear-completed:active {
 	-webkit-appearance: none;
 	appearance: none;
 	list-style: none;
-	float: left;
 	margin-right: 20px;
 }
 
 .cell {
-	width: 50%;
-	float: left;
 	font-size: 1.5em;
+	vertical-align: top;
+}
+
+.cell ul {
+	margin: 0;
 }
 
 .error {

@@ -1,17 +1,17 @@
 {% macro render_word(item) -%}
-    {{ item.word.value }}
+{{ item.word.value }}
 {%- endmacro -%}
 
 {% macro render_translations(item) -%}
-    <ul>
-        {% for n in item.translations %}
-            <li><a href="" hx-get="/word?id={{ n.id }}" hx-target="#search-results" hx-swap="innerHTML">{{ n.value }}</a></li>
-        {% endfor %}
-    </ul>
-{%- endmacro -%}
-
-<ul class="result-list" id="result-list">
-    {% for item in results %}
-        {% include "item.html" %}
+<ul>
+    {% for n in item.translations %}
+    <li><a href="" hx-get="/word?id={{ n.id }}&value={{ item.word.value }}" hx-target="#search-results" hx-swap="innerHTML">{{ n.value }}</a></li>
     {% endfor %}
 </ul>
+{%- endmacro -%}
+
+<table class="result-list">
+    {% for item in results %}
+      {% include "item.html" %}
+    {% endfor %}
+</table>

@@ -1,5 +1,6 @@
+use std::fmt;
 use askama::Template;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use axum::{
     response::{Html, IntoResponse, Response},
     extract::{Form, State, Query}
@@ -7,8 +8,8 @@ use axum::{
 //use dotenv::var;
 use log::{debug};
 use std::str::FromStr;
-use sqlx::{Error, Row};
-use sqlx::mysql::MySqlQueryResult;
+use sqlx::Row;
+//use sqlx::mysql::MySqlQueryResult;
 use strum_macros::{Display, EnumString};
 
 use crate::i18n;
@@ -24,6 +25,7 @@ struct Word {
     id: u32,
     value: String,
     lang: Lang,
+    pos: Option<String>,
     transcript: Option<String>
 }
 
@@ -42,6 +44,11 @@ struct Translation {
 #[derive(Deserialize, Debug)]
 pub struct WordIdParam {
   id: u32
+}
+
+#[derive(Deserialize, Debug)]
+pub struct WordValueParam {
+    value: Option<String>
 }
 
 #[derive(Deserialize, Debug)]
@@ -75,6 +82,7 @@ struct NoResultsTemplate<> {
 #[template(path = "word-details.html")]
 struct WordDetailsTemplate<'a> {
     word: &'a Word,
+    selected: &'a Option<String>,
     variants: &'a Vec<Variant>
 }
 
@@ -122,7 +130,8 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
         a.id, \
         a.value, \
         a.lang as \"lang: Lang\", \
-        a.transcript \
+        a.transcript, \
+        a.pos \
         FROM word a where a.value like ?",
         format!("{}%", payload.query.trim()));
     let words = query.fetch_all(&state.db_pool).await;
@@ -137,16 +146,19 @@ pub async fn search(State(state): State<AppState>, Form(payload): Form<Search>) 
     }
 }
 
-pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<WordIdParam>>) -> Response {
+pub async fn word_details(State(state): State<AppState>,
+                          word_id: Option<Query<WordIdParam>>,
+                          selected_word: Option<Query<WordValueParam>>) -> Response {
     log_query(&state.db_pool, "WORD_VIEW").await.unwrap();
-    
+
     let query = sqlx::query_as!(
         Word, 
         "select \
         a.id, \
         a.value, \
         a.lang as \"lang: Lang\", \
-        a.transcript \
+        a.transcript, \
+        a.pos \
         from word a where a.id = ?",
         word_id.unwrap().id);
     let word_query_result = query.fetch_one(&state.db_pool).await;
@@ -162,16 +174,21 @@ pub async fn word_details(State(state): State<AppState>, word_id: Option<Query<W
         word.id
     );
 
+    let selected_word_value = match selected_word {
+        Some(selected) => selected.value.clone(),
+        None => None
+    };
+
     let query_result = variant_query.fetch_all(&state.db_pool).await;
     match query_result {
-        Ok(variants) => word_details_response(&word, &variants),
+        Ok(variants) => word_details_response(&word, selected_word_value, &variants),
         Err(error) => error_response(&error)
     }
 }
 
-pub async fn add_word_get(Query(query): Query<WordParam>) -> Response {
+pub async fn add_word_get(selected: Query<WordValueParam>) -> Response {
     let template = WordAddTemplate {
-        value1: &query.query,
+        value1: &selected.value,
         value2: &None
     };
     let html = template.render().unwrap();
@@ -231,9 +248,12 @@ pub async fn add_word_post(State(state): State<AppState>, Form(query): Form<AddW
     Html("<span class='success'>DONE</span>").into_response()
 }
 
-fn word_details_response(word: &Word, variants: &Vec<Variant>) -> Response {
+fn word_details_response(word: &Word,
+                         query: Option<String>,
+                         variants: &Vec<Variant>) -> Response {
     let template = WordDetailsTemplate {
         word,
+        selected: &query,
         variants
     };
     let html = template.render().unwrap();
@@ -310,14 +330,14 @@ async fn fetch_translations(word: &Word, db_pool: &sqlx::Pool<sqlx::MySql>) -> R
     };
 
     let mut query_builder: sqlx::QueryBuilder<sqlx::MySql> = sqlx::QueryBuilder::new(
-        "SELECT a.id, a.value, a.lang, a.transcript FROM word a where a.id in ("
+        "SELECT a.id, a.value, a.lang, a.transcript, a.pos FROM word a where a.id in ("
     );
     let mut separated = query_builder.separated(", ");
     for value_type in ids {
         separated.push_bind(value_type);
     }
     separated.push_unseparated(") ");
-    let mut query = query_builder.build();
+    let query = query_builder.build();
     let result = query.fetch_all(&*db_pool).await;
 
     match result {
@@ -328,11 +348,13 @@ async fn fetch_translations(word: &Word, db_pool: &sqlx::Pool<sqlx::MySql>) -> R
                     let value: String = row.get(1);
                     let lang: Lang = Lang::from_str(row.get(2)).unwrap();
                     let transcript: Option<String> = row.get(3);
+                    let pos: Option<String> = row.get(4);
 
                     Word {
                         id,
                         value,
                         lang,
+                        pos,
                         transcript
                     }
                 })

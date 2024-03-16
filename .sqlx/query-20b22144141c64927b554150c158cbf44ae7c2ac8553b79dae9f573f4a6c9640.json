@@ -1,6 +1,6 @@
 {
   "db_name": "MySQL",
-  "query": "select a.id, a.value, a.lang as \"lang: Lang\", a.transcript from word a where a.id = ?",
+  "query": "select a.id, a.value, a.lang as \"lang: Lang\", a.transcript, a.pos from word a where a.id = ?",
   "describe": {
     "columns": [
       {
@@ -42,6 +42,16 @@
           "char_set": 224,
           "max_size": 400
         }
+      },
+      {
+        "ordinal": 4,
+        "name": "pos",
+        "type_info": {
+          "type": "VarString",
+          "flags": "",
+          "char_set": 224,
+          "max_size": 80
+        }
       }
     ],
     "parameters": {
@@ -51,8 +61,9 @@
       false,
       false,
       false,
+      true,
       true
     ]
   },
-  "hash": "6e991481b094b1c2aeec6df703fb4d7133324fbf75e6fca7db932d9ee39e775f"
+  "hash": "20b22144141c64927b554150c158cbf44ae7c2ac8553b79dae9f573f4a6c9640"
 }

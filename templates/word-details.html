@@ -1,11 +1,19 @@
 {% let len = variants.len() %}
 
+{% if selected.is_some() %}
 <h1>
-  <span>{{ word.value }}</span>
-  {% if word.transcript.is_some() %}
-  <span>({{ word.transcript.as_ref().unwrap() }})</span>
+  <span>{{ selected.as_ref().unwrap() }}</span>
+  {% if word.pos.is_some() %}
+  <span>({{ word.pos.as_ref().unwrap() }})</span>
   {% endif %}
 </h1>
+{% endif %}
+
+<span>{{ word.value }}</span>
+{% if word.transcript.is_some() %}
+<span>({{ word.transcript.as_ref().unwrap() }})</span>
+{% endif %}
+
 
 {% if len > 0 %}
   <h2>Varianten</h2>
