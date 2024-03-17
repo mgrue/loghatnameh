@@ -415,7 +415,7 @@ html .clear-completed:active {
 	display: block;
 }
 
-#add-word input {
+#add-word input, select {
 	position: relative;
 	margin-bottom: 10px;
 	font-size: 24px;
@@ -429,9 +429,12 @@ html .clear-completed:active {
 	box-sizing: border-box;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
-
 	padding: 16px 16px 16px 20px;
 	border: none;
+}
+
+select {
+	background-color: white;
 }
 
 label {

@@ -61,6 +61,7 @@ pub struct AddWordParam {
     word1: Option<String>,
     word2: Option<String>,
     transcript: Option<String>,
+    pos: Option<String>,
 }
 
 #[derive(Template)]
@@ -204,19 +205,22 @@ pub async fn add_word_post(State(state): State<AppState>, Form(query): Form<AddW
         let transaction = state.db_pool.begin().await;
         let word1 = query.word1.unwrap();
         let word2 = query.word2.unwrap();
+        let pos = query.pos.unwrap();
 
         match transaction {
             Ok(mut tx) => {
-                let word1_insert = sqlx::query("INSERT INTO word(value, lang) VALUES(?, ?)")
+                let word1_insert = sqlx::query("INSERT INTO word(value, lang, pos) VALUES(?, ?, ?)")
                     .bind(word1)
                     .bind("DE")
+                    .bind(&pos)
                     .execute(&mut *tx)
                     .await;
 
-                let word2_insert = sqlx::query("INSERT INTO word(value, transcript, lang) VALUES(?, ?, ?)")
+                let word2_insert = sqlx::query("INSERT INTO word(value, transcript, lang, pos) VALUES(?, ?, ?, ?)")
                     .bind(word2)
                     .bind(query.transcript)
                     .bind("FA")
+                    .bind(&pos)
                     .execute(&mut *tx)
                     .await;
 

@@ -2,7 +2,7 @@
 <form hx-post="/add-word"
       hx-target="#add-word"
       hx-swap="innerHTML"
-      hx-include="[name='word1'],[name='word2'],[name='transcript']">
+      hx-include="[name='word1'],[name='word2'],[name='transcript'],[name='pos']">
     <label>
         Deutsch<br/>
         <input class="add-word" name="word1" required pattern="^(?!\s*$).+" />
@@ -12,6 +12,18 @@
         Farsi<br/>
         <input class="add-word" name="word2" placeholder="Übersetzung" required pattern="^(?!\s*$).+" />
         <input class="add-word" name="transcript" placeholder="Transkript" required />
+    </label>
+    <br/>
+    <label>
+        Wortart<br/>
+        <select name="pos" id="pos-select">
+            <option value="NOUN">Substantiv</option>
+            <option value="VERB">Verb</option>
+            <option value="ADJ">Adjektiv</option>
+            <option value="ADP">Präposition</option>
+            <option value="PRON">Pronomen</option>
+            <option value="NUM">Numeral</option>
+        </select>
     </label>
     <br/>
     <button >Wort hinzufügen
