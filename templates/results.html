@@ -1,17 +1,26 @@
 {% macro render_word(item) -%}
-{{ item.word.value }}
+<span>
+    {{ item.word.value }}
+</span>
+
+{% if item.word.pos.is_some() %}
+<span>
+    ({{ item.word.pos.as_ref().unwrap() }})
+</span>
+{% endif %}
 {%- endmacro -%}
 
 {% macro render_translations(item) -%}
 <ul>
     {% for n in item.translations %}
-    <li><a href="" hx-get="/word?id={{ n.id }}&value={{ item.word.value }}" hx-target="#search-results" hx-swap="innerHTML">{{ n.value }}</a></li>
+    <li><a href="" hx-get="/word?id={{ n.id }}&value={{ item.word.value }}" hx-target="#search-results"
+           hx-swap="innerHTML">{{ n.value }}</a></li>
     {% endfor %}
 </ul>
 {%- endmacro -%}
 
 <table class="result-list">
     {% for item in results %}
-      {% include "item.html" %}
+    {% include "item.html" %}
     {% endfor %}
 </table>
